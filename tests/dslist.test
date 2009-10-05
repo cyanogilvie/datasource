@@ -1,0 +1,49 @@
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4
+
+if {"::tcltest" ni [namespace children]} {
+	package require tcltest 2.2.5
+	namespace import ::tcltest::*
+}
+
+try {
+	package require datasource
+} on error {errmsg options} {
+	puts stderr [dict get $options -errorinfo]
+	exit 2
+}
+
+test dslist-1.1 {Construct dslist} -body { #<<<
+	set obj	[ds::dslist new]
+	info object isa object $obj
+} -cleanup {
+	if {[info exists obj]} {
+		if {[info object isa object $obj]} {
+			$obj destroy
+		}
+		unset obj
+	}
+} -result 1
+#>>>
+test dslist-2.1 {Basic getlist} -body { #<<<
+	set obj	[ds::dslist new -headers {id foo bar} -list {
+		{1 a1 b1}
+		{2 a2 b2}
+		{3 a3 b3}
+	}]
+	lrange [$obj get_list {}] 0 end
+} -cleanup {
+	if {[info exists obj]} {
+		if {[info object isa object $obj]} {
+			$obj destroy
+		}
+		unset obj
+	}
+} -result [list \
+		{1 a1 b1} \
+		{2 a2 b2} \
+		{3 a3 b3} \
+]
+#>>>
+
+tcltest::cleanupTests
+return

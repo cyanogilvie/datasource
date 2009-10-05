@@ -1,0 +1,20 @@
+tm "datasource" {
+	version 0.1
+
+	requires {
+		cflib
+	}
+
+	files {
+		datasource.tcl
+		datasource_list.tcl
+		datasource_filter.tcl
+		datasource_chan.tcl
+		datasource_chan_backend.tcl
+		datasource_chan_backend_lists.tcl
+	}
+
+	platform tcl
+}
+
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4

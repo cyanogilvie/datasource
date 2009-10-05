@@ -1,0 +1,37 @@
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4
+
+if {"::tcltest" ni [namespace children]} {
+	package require tcltest 2.2.5
+	namespace import ::tcltest::*
+}
+
+try {
+	package require datasource
+} on error {errmsg options} {
+	puts stderr [dict get $options -errorinfo]
+	exit 2
+}
+
+test datasource_filter-1.1 {Construct datasource_filter} -constraints {knownBug} -setup { #<<<
+	set ds	[ds::datasource new]
+} -body {
+	set obj	[ds::datasource_filter new -ds $ds]
+	info object isa object $obj
+} -cleanup {
+	if {[info exists obj]} {
+		if {[info object isa object $obj]} {
+			$obj destroy
+		}
+		unset obj
+	}
+	if {[info exists ds]} {
+		if {[info object isa object $ds]} {
+			$ds destroy
+		}
+		unset ds
+	}
+} -result 1
+#>>>
+
+tcltest::cleanupTests
+return
