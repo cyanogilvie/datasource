@@ -58,7 +58,7 @@ cflib::pclass create ds::dschan_backend {
 		set db		"db,[self]"
 		sqlite3 [namespace current]::$db $_dbfile
 
-		init_db
+		my _init_db
 
 		set auth	[$comp cget -auth]
 		$comp handler $tag [my code _req_handler]
