@@ -1,0 +1,48 @@
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4
+
+if {"::tcltest" ni [namespace children]} {
+	package require tcltest 2.2.5
+	namespace import ::tcltest::*
+}
+
+try {
+	package require datasource
+	package require m2
+} on error {errmsg options} {
+	puts stderr [dict get $options -errorinfo]
+	exit 2
+}
+
+set keysdir	[file join / etc codeforge authenticator keys]
+
+set uri	"uds://[pwd]/tests/m2.socket"
+
+
+m2::authenticator create auth -uri $uri \
+		-pbkey [file join $keysdir authenticator.pub]
+m2::component create comp \
+		-auth		auth \
+		-svc		"examplecomponent" \
+		-prkeyfn	[file join $keysdir examplecomponent.priv]
+
+set conn	[auth connect_svc "examplecomponent"]
+
+if {![auth login "cyan@cf" "foo"]} {
+	error "Couldn't log in"
+}
+
+test dschan-1.1 {Construct dschan} -body { #<<<
+	set obj	[ds::dschan new -connector $conn]
+	info object isa object $obj
+} -cleanup {
+	if {[info exists obj]} {
+		if {[info object isa object $obj]} {
+			$obj destroy
+		}
+		unset obj
+	}
+} -result 1
+#>>>
+
+tcltest::cleanupTests
+return
