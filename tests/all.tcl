@@ -14,6 +14,8 @@ if {[lsearch [namespace children] ::tcltest] == -1} {
     namespace import ::tcltest::*
 }
 
+tcl::tm::path add [file join [pwd] tm tcl]
+
 set ::tcltest::testSingleFile false
 set ::tcltest::testsDirectory [file dir [info script]]
 

@@ -44,6 +44,19 @@ test dslist-2.1 {Basic getlist} -body { #<<<
 		{3 a3 b3} \
 ]
 #>>>
+test dslist-3.1 {Get -id_column} -setup { #<<<
+	set ds	[ds::dslist new -headers {id foo bar} -list {}]
+} -body {
+	$ds cget -id_column
+} -cleanup {
+	if {[info exists ds]} {
+		if {[info object isa object $ds]} {
+			$ds destroy
+		}
+		unset ds
+	}
+} -result 0
+#>>>
 
 tcltest::cleanupTests
 return

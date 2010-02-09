@@ -35,7 +35,7 @@ cflib::pclass create ds::datasource {
 	}
 
 	constructor {args} { #<<<
-		array set can_do	{}
+		set can_do			[dict create]
 		set last_headers	{}
 
 		my configure {*}$args
@@ -166,9 +166,9 @@ cflib::pclass create ds::datasource {
 	#>>>
 	method can_do {action args} { #<<<
 		if {[llength $args] == 0} {
-			return [expr {[info exists can_do($action)] && $can_do($action)}]
+			expr {[dict exists $can_do $action] && [dict get $can_do $action]}
 		} elseif {[llength $args] == 1} {
-			set can_do($action)	[expr {[lindex $args 0]}]
+			dict set can_do $action	[expr {[lindex $args 0]}]
 		} else {
 			error "Wrong # of args: must be action ?newvalue?"
 		}

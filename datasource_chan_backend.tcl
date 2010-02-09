@@ -94,14 +94,19 @@ cflib::pclass create ds::dschan_backend {
 
 	#>>>
 	method _comp_changed {} { #<<<
-		dict set pools $pool		$check_cb
-		my log debug "registered pool"
-		my _announce_pool $pool
+		if {[info exists pool] && [info exists check_cb]} {
+			dict set pools $pool		$check_cb
+			my log debug "registered pool"
+			my _announce_pool $pool
+		}
 	}
 
 	#>>>
 
 	method register_pool {pool {check_cb {}}} { #<<<
+		dict set pools $pool $check_cb
+		my log debug "Registered pool: $pool"
+		my _announce_pool $pool
 	}
 
 	#>>>
@@ -328,7 +333,7 @@ cflib::pclass create ds::dschan_backend {
 
 	#>>>
 	method _announce_new {pool id item} { #<<<
-		my log debug "pool exists: [info exists [dict get pool_jmids $pool]]"
+		my log debug "pool exists: [dict exists $pool_jmids $pool]"
 		if {[dict exists $pool_jmids $pool]} {
 			$auth jm [dict get $pool_jmids $pool] [list new $id $item]
 		}
@@ -400,7 +405,7 @@ cflib::pclass create ds::dschan_backend {
 					if {![dict exists $pool_jmids $pool]} {
 						dict set pool_jmids $pool	[$auth unique_id]
 						$auth chans register_chan \
-								[dict get $pool_jmids $pools] \
+								[dict get $pool_jmids $pool] \
 								[my code _pool_chan_cb $pool]
 					}
 

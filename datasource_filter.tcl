@@ -29,7 +29,7 @@ cflib::pclass create ds::datasource_filter {
 	property override_headers	{}		_need_refilter
 	property filter				true	_filter_changed
 	property translator			{}		_need_refilter
-	property id_column			""		_id_column_changed
+	property id_column			""		_id_column_parameter_changed
 	property debug				0
 
 	variable {*}{
@@ -100,7 +100,7 @@ cflib::pclass create ds::datasource_filter {
 
 	#>>>
 
-	method _id_column_changed {} { #<<<
+	method _id_column_parameter_changed {} { #<<<
 		if {$id_column eq ""} {
 			set link_id_column	1
 			if {
@@ -267,7 +267,7 @@ cflib::pclass create ds::datasource_filter {
 							break
 						} on ok {res} {
 							set passes	$res
-							break
+							if {!($passes)} break
 						}
 
 						if {$use_trans} $translator
@@ -376,7 +376,7 @@ cflib::pclass create ds::datasource_filter {
 		set meta		[$ds pool_meta $pool]
 
 		set row	{}
-		foreach h $hdrs v $vals {
+		foreach h $hdrs v $newitem {
 			lappend row $h $v
 		}
 
