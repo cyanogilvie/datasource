@@ -203,7 +203,7 @@ cflib::pclass create ds::dschan {
 			pr_jm { #<<<
 				switch -- [lindex [dict get $msg data] 0] {
 					"general" {
-						set general_jmid	[dict get $msg jmid]
+						set general_jmid	[dict get $msg seq]
 						set general			[lindex [dict get $msg data] 1]
 						set id_column		[dict get $general id_column]
 						$dominos(need_refresh) tip
@@ -213,8 +213,8 @@ cflib::pclass create ds::dschan {
 						lassign [dict get $msg data] - pool data meta
 						dict set pool_data $pool	$data
 						dict set pool_meta $pool	$meta
-						dict set pool_jmids $pool	[dict get $msg jmid]
-						dict set jmid2pool [dict get $msg jmid]	$pool
+						dict set pool_jmids $pool	[dict get $msg seq]
+						dict set jmid2pool [dict get $msg seq]	$pool
 						$dominos(need_refresh) tip
 					}
 
@@ -225,10 +225,10 @@ cflib::pclass create ds::dschan {
 				#>>>
 			}
 			jm { #<<<
-				if {![dict exists $jmid2pool [dict get $msg jmid]]} {
+				if {![dict exists $jmid2pool [dict get $msg seq]]} {
 					if {
 						[info exists general_jmid] &&
-						[dict get $msg jmid] eq $general_jmid
+						[dict get $msg seq] eq $general_jmid
 					} {
 						my log debug "general info update"
 						switch -- [lindex $data 0] {
@@ -259,10 +259,10 @@ cflib::pclass create ds::dschan {
 							}
 						}
 					} else {
-						my log error "unrecognized channel: ([dict get $msg jmid])"
+						my log error "unrecognized channel: ([dict get $msg seq])"
 					}
 				} else {
-					set pool	[dict get $jmid2pool [dict get $msg jmid]]
+					set pool	[dict get $jmid2pool [dict get $msg seq]]
 					switch -- [lindex [dict get $msg data] 0] {
 						"new" { #<<<
 							set id		[lindex [dict get $msg data] 1]
@@ -312,16 +312,16 @@ cflib::pclass create ds::dschan {
 				#>>>
 			}
 			jm_can { #<<<
-				if {![dict exists $jmid2pool [dict get $msg jmid]]} {
-					if {[info exists general_jmid] && [dict get $msg jmid] eq $general_jmid} {
+				if {![dict exists $jmid2pool [dict get $msg seq]]} {
+					if {[info exists general_jmid] && [dict get $msg seq] eq $general_jmid} {
 						unset general_jmid
 						$signals(connected) set_state 0
 					} else {
-						my log error "unrecognized channel cancelled: ([dict get $msg jmid])"
+						my log error "unrecognized channel cancelled: ([dict get $msg seq])"
 					}
 				} else {
-					set pool	[dict get $jmid2pool [dict get $msg jmid]]
-					dict unset jmid2pool	[dict get $msg jmid]
+					set pool	[dict get $jmid2pool [dict get $msg seq]]
+					dict unset jmid2pool	[dict get $msg seq]
 					dict unset pool_data	$pool
 					dict unset pool_meta	$pool
 					dict unset pool_jmids	$pool
