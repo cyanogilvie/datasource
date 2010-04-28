@@ -76,7 +76,7 @@ cflib::pclass create ds::dschan {
 		my configure {*}$args
 
 		foreach reqf {connector tag} {
-			if {![info exists $reqf] || [set $ref] eq ""} {
+			if {![info exists $reqf] || [set $reqf] eq ""} {
 				error "Must set -$reqf"
 			}
 		}
