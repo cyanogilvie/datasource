@@ -231,7 +231,7 @@ cflib::pclass create ds::dschan {
 						[dict get $msg seq] eq $general_jmid
 					} {
 						my log debug "general info update"
-						switch -- [lindex $data 0] {
+						switch -- [lindex [dict get $msg data] 0] {
 							"headers_changed" { #<<<
 								dict set general headers	[lindex [dict get $msg data] 1]
 								my invoke_handlers headers_changed [dict get $general headers]
@@ -265,8 +265,8 @@ cflib::pclass create ds::dschan {
 					set pool	[dict get $jmid2pool [dict get $msg seq]]
 					switch -- [lindex [dict get $msg data] 0] {
 						"new" { #<<<
-							set id		[lindex [dict get $msg data] 1]
-							set item	[lindex [dict get $msg data] 2]
+							lassign [dict get $msg data] - id item
+
 							dict lappend pool_data $pool	$item
 
 							try {
@@ -274,7 +274,7 @@ cflib::pclass create ds::dschan {
 							} on error {errmsg options} {
 								my log error "handlers for new_item threw error: $errmsg\n[dict get $options -errorinfo]"
 							} on ok {} {
-								my log debug "All handlers for new_item completed ok"
+								?? {my log debug "All handlers for new_item completed ok"}
 							}
 							$dominos(need_refresh) tip
 							#>>>
@@ -305,8 +305,8 @@ cflib::pclass create ds::dschan {
 						}
 						default { #<<<
 							log error "unhandled update type: ([lindex [dict get $msg data] 0])"
+							#>>>
 						}
-						#>>>
 					}
 				}
 				#>>>
