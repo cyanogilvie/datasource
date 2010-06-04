@@ -252,9 +252,9 @@ cflib::pclass create ds::datasource_filter {
 
 				set new_pool_data	{}
 				foreach r $data {
-					set row	{}
+					set row	[dict create]
 					foreach h $hdrs v $vals {
-						lappend row $h $v
+						dict set row $h $v
 					}
 
 					set passes	1
