@@ -148,11 +148,11 @@ cflib::pclass create ds::dschan {
 
 	method _authenticated_changed {newstate} { #<<<
 		if {$newstate} {
-			my log debug "Attempting to setup chans extra: ($extra)"
+			#my log debug "Attempting to setup chans extra: ($extra)"
 			$connector req_async $tag [list "setup_chans" $extra] \
 					[my code _jm_handler [list initial]]
 		} else {
-			my log error "not connected to backend"
+			#my log error "not connected to backend"
 			$signals(connected) set_state 0
 		}
 	}
@@ -165,13 +165,13 @@ cflib::pclass create ds::dschan {
 				switch -- $type {
 					"new_pool" {
 						lassign $cdata new_pool
-						my log debug "joined new pool ($new_pool), invoking new_pool handlers"
+						#my log debug "joined new pool ($new_pool), invoking new_pool handlers"
 						my invoke_handlers new_pool $new_pool
 					}
 
 					"initial" {
 						lassign $cdata extra
-						my log debug "Setup chans returned.  extra: ($extra)"
+						#my log debug "Setup chans returned.  extra: ($extra)"
 						$signals(connected) set_state 1
 						my invoke_handlers init
 					}
@@ -230,7 +230,7 @@ cflib::pclass create ds::dschan {
 						[info exists general_jmid] &&
 						[dict get $msg seq] eq $general_jmid
 					} {
-						my log debug "general info update"
+						#my log debug "general info update"
 						switch -- [lindex [dict get $msg data] 0] {
 							"headers_changed" { #<<<
 								dict set general headers	[lindex [dict get $msg data] 1]
@@ -247,7 +247,7 @@ cflib::pclass create ds::dschan {
 							}
 							"new_pool" { #<<<
 								set new_pool			[lindex [dict get $msg data] 1]
-								my log debug "received notice of new pool: ($new_pool), requesting to join (extra: $extra)"
+								#my log debug "received notice of new pool: ($new_pool), requesting to join (extra: $extra)"
 								$connector req_async $tag \
 										[list "setup_new_pool" $new_pool $extra] \
 										[my code _jm_handler [list new_pool [list $new_pool]]]

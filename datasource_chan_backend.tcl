@@ -96,7 +96,6 @@ cflib::pclass create ds::dschan_backend {
 	method _comp_changed {} { #<<<
 		if {[info exists pool] && [info exists check_cb]} {
 			dict set pools $pool		$check_cb
-			my log debug "registered pool"
 			my _announce_pool $pool
 		}
 	}
@@ -105,7 +104,6 @@ cflib::pclass create ds::dschan_backend {
 
 	method register_pool {pool {check_cb {}}} { #<<<
 		dict set pools $pool $check_cb
-		my log debug "Registered pool: $pool"
 		my _announce_pool $pool
 	}
 
@@ -124,7 +122,6 @@ cflib::pclass create ds::dschan_backend {
 				pool = $pool
 		}
 		dict unset pools $pool
-		my log debug "deregistered pool"
 	}
 
 	#>>>
@@ -151,7 +148,6 @@ cflib::pclass create ds::dschan_backend {
 			)
 		}
 
-		my log debug "announcing new item ($id) in pool ($pool)"
 		my _announce_new $pool $id $item
 	}
 
@@ -183,7 +179,6 @@ cflib::pclass create ds::dschan_backend {
 				id = $id
 				and pool = $pool
 		}
-		my log debug "\nannouncing item change ($id) in pool ($pool)\nold: ($olditem)\nnew: ($newitem)"
 		my _announce_changed $pool $id $olditem $newitem
 	}
 
@@ -234,7 +229,6 @@ cflib::pclass create ds::dschan_backend {
 			$db eval {rollback}
 			return -options $options $errmsg
 		}
-		my log debug "announcing item removal ($id) from pool ($pool)"
 		my _announce_removed $pool $id $item
 	}
 
@@ -325,7 +319,6 @@ cflib::pclass create ds::dschan_backend {
 	#>>>
 
 	method _announce_pool {pool} { #<<<
-		my log debug "general_info_jmid exists: [info exists general_info_jmid]"
 		if {[info exists general_info_jmid]} {
 			$auth jm $general_info_jmid [list new_pool $pool]
 		}
@@ -333,7 +326,6 @@ cflib::pclass create ds::dschan_backend {
 
 	#>>>
 	method _announce_new {pool id item} { #<<<
-		my log debug "pool exists: [dict exists $pool_jmids $pool]"
 		if {[dict exists $pool_jmids $pool]} {
 			$auth jm [dict get $pool_jmids $pool] [list new $id $item]
 		}
@@ -341,7 +333,6 @@ cflib::pclass create ds::dschan_backend {
 
 	#>>>
 	method _announce_changed {pool id olditem newitem} { #<<<
-		my log debug "pool exists: [dict exists $pool_jmids $pool]]"
 		if {[dict exists $pool_jmids $pool]} {
 			$auth jm [dict get $pool_jmids $pool] \
 					[list changed $id $olditem $newitem]
@@ -350,7 +341,6 @@ cflib::pclass create ds::dschan_backend {
 
 	#>>>
 	method _announce_removed {pool id item} { #<<<
-		my log debug "pool exists: [dict exists $pool_jmids $pool]]"
 		if {[dict exists $pool_jmids $pool]} {
 			$auth jm [dict get $pool_jmids $pool] [list removed $id $item]
 		}
@@ -376,7 +366,6 @@ cflib::pclass create ds::dschan_backend {
 						# via an upvar command.  We send the contents to the client
 						set pool_meta	[dict create]
 
-						my log debug "check_cb is: ($check_cb)"
 						if {
 							$check_cb eq {} ||
 							[{*}$check_cb $user $pool $extra]
@@ -385,7 +374,6 @@ cflib::pclass create ds::dschan_backend {
 						}
 
 						dict set pool_meta_all $pool	$pool_meta
-						my log debug "Saving pool_meta for ($pool):\n[dict get $pool_meta_all $pool]"
 					} on error {errmsg options} {
 						my log error "error calling check_cb:\n$::errorInfo"
 					}
@@ -409,7 +397,6 @@ cflib::pclass create ds::dschan_backend {
 								[my code _pool_chan_cb $pool]
 					}
 
-					my log debug "Contents of pool_meta array:\n$pool_meta"
 					set all_items	[$db eval {
 						select
 							data
@@ -459,11 +446,9 @@ cflib::pclass create ds::dschan_backend {
 						}]
 						$auth pr_jm [dict get $pool_jmids $new_pool] $seq \
 								[list datachan $new_pool $all_items $pool_meta]
-						my log debug "Added user ([$user name]) to new pool ($new_pool), with ([llength $all_items]) initial items"
 
 						$auth ack $seq ""
 					} else {
-						my log debug "User ([$user name]) is not a viewer of pool ($new_pool)"
 						$auth ack $seq ""
 					}
 				} on error {errmsg options} {
@@ -485,7 +470,6 @@ cflib::pclass create ds::dschan_backend {
 	method _pool_chan_cb {pool op data} { #<<<
 		switch -- $op {
 			cancelled {
-				my log debug "all destinations disconnected"
 				dict unset pool_jmids $pool
 			}
 
@@ -504,7 +488,6 @@ cflib::pclass create ds::dschan_backend {
 	method _general_info_chan_cb {op data} { #<<<
 		switch -- $op {
 			cancelled {
-				my log debug "all destinations disconnected"
 				if {[info exists general_info_jmid]} {
 					unset general_info_jmid
 				}
