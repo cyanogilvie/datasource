@@ -4,8 +4,6 @@
 # 	Periodic housecleaning routine for recently_deceased trimming
 
 cflib::pclass create ds::dschan_backend {
-	superclass cflib::baselog
-
 	property id_column		0	_id_column_changed
 	property comp			""	_comp_changed
 	property tag
@@ -126,6 +124,7 @@ cflib::pclass create ds::dschan_backend {
 
 	#>>>
 	method add_item {pool item} { #<<<
+		?? {log debug "add_item pool: ($pool) id: ([lindex $item $id_column])"}
 		my _check_pool $pool
 		set id		[lindex $item $id_column]
 
@@ -153,9 +152,25 @@ cflib::pclass create ds::dschan_backend {
 
 	#>>>
 	method change_item {pool id newitem} { #<<<
+		?? {log debug "change_item pool ($pool) id: ($id)"}
 		my _check_pool $pool
 
 		if {![my id_exists $pool $id]} {
+			?? {
+				log debug "change_item ($pool) ($id), doesn't exist in pool:"
+				$db eval {
+					select
+						pool	as dbg_p,
+						id		as dbg_i
+					from
+						pool_data
+					order by
+						pool,
+						id
+				} {
+					log debug "pool ($dbg_p), id: ($dbg_i)"
+				}
+			}
 			error "ID $id does not exist in $pool"
 		}
 
@@ -184,9 +199,10 @@ cflib::pclass create ds::dschan_backend {
 
 	#>>>
 	method remove_item {pool id} { #<<<
+		?? {log debug "remove_item pool ($pool) id: ($id)"}
 		my _check_pool $pool
 		if {![my id_exists $pool $id]} {
-			my log warning "item ($id) not found in pool ($pool)"
+			log warning "item ($id) not found in pool ($pool)"
 			return
 		}
 
@@ -246,10 +262,25 @@ cflib::pclass create ds::dschan_backend {
 		}]
 		# WARNING: this logic will break if more columns are selected
 		if {[llength $rows] == 0} {
+			?? {
+				log debug "get_item ($pool) ($id), doesn't exist in pool:"
+				$db eval {
+					select
+						pool	as dbg_p,
+						id		as dbg_i
+					from
+						pool_data
+					order by
+						pool,
+						id
+				} {
+					log debug "pool ($dbg_p), id: ($dbg_i)"
+				}
+			}
 			error "ID $id does not exist in $pool"
 		}
 		if {[llength $rows] > 1} {
-			my log warning "Duplicate rows for id ($id) and pool ($pool)"
+			log warning "Duplicate rows for id ($id) and pool ($pool)"
 		}
 		lindex $rows 0
 	}
@@ -375,7 +406,7 @@ cflib::pclass create ds::dschan_backend {
 
 						dict set pool_meta_all $pool	$pool_meta
 					} on error {errmsg options} {
-						my log error "error calling check_cb:\n$::errorInfo"
+						log error "error calling check_cb:\n$::errorInfo"
 					}
 				}
 
@@ -452,14 +483,14 @@ cflib::pclass create ds::dschan_backend {
 						$auth ack $seq ""
 					}
 				} on error {errmsg options} {
-					my log error "error calling check_cb:\n[dict get $options -errorinfo]"
+					log error "error calling check_cb:\n[dict get $options -errorinfo]"
 					$auth nack $seq "Internal error"
 					return
 				}
 				#>>>
 			}
 			default { #<<<
-				my log error "invalid req type: [lindex $rest 0]"
+				log error "invalid req type: [lindex $rest 0]"
 				$auth nack $seq "Invalid req type: ([lindex $rest 0])"
 				#>>>
 			}
@@ -479,7 +510,7 @@ cflib::pclass create ds::dschan_backend {
 			}
 
 			default {
-				my log error "unexpected op: ($op)"
+				log error "unexpected op: ($op)"
 			}
 		}
 	}
@@ -499,7 +530,7 @@ cflib::pclass create ds::dschan_backend {
 			}
 
 			default {
-				my log error "unexpected op: ($op)"
+				log error "unexpected op: ($op)"
 			}
 		}
 	}
