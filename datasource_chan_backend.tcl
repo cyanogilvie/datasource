@@ -10,6 +10,7 @@ cflib::pclass create ds::dschan_backend {
 	property headers		{}	_headers_changed
 	property dbfile			":memory:"
 	property persist		0
+	property capabilities	{lookup}
 
 	variable {*}{
 		auth
@@ -348,6 +349,24 @@ cflib::pclass create ds::dschan_backend {
 	}
 
 	#>>>
+	method req_add_item {user item} { #<<<
+		# Override this and return a normalized item
+		throw nack "insert not implemented"
+	}
+
+	#>>>
+	method req_update_item {user olditem newitem} { #<<<
+		# Override this and return a normalized item
+		throw nack "update not implemented"
+	}
+
+	#>>>
+	method req_delete_item {user item} { #<<<
+		# Override this, returning a blank string
+		throw nack "delete not implemented"
+	}
+
+	#>>>
 
 	method _announce_pool {pool} { #<<<
 		if {[info exists general_info_jmid]} {
@@ -386,85 +405,48 @@ cflib::pclass create ds::dschan_backend {
 
 	#>>>
 	method _req_handler {auth user seq rest} { #<<<
-		switch -- [lindex $rest 0] {
-			"setup_chans" { #<<<
-				set extra	[lindex $rest 1]
+		try {
+			switch -- [lindex $rest 0] {
+				setup_chans { #<<<
+					set extra	[lindex $rest 1]
 
-				set userpools	{}
-				dict for {pool check_cb} $pools {
-					try {
-						# Provide a place for the check_cb callback to scribble into
-						# via an upvar command.  We send the contents to the client
-						set pool_meta	[dict create]
+					set userpools	{}
+					dict for {pool check_cb} $pools {
+						try {
+							# Provide a place for the check_cb callback to scribble into
+							# via an upvar command.  We send the contents to the client
+							set pool_meta	[dict create]
 
-						if {
-							$check_cb eq {} ||
-							[{*}$check_cb $user $pool $extra]
-						} {
-							lappend userpools	$pool
+							if {
+								$check_cb eq {} ||
+								[{*}$check_cb $user $pool $extra]
+							} {
+								lappend userpools	$pool
+							}
+
+							dict set pool_meta_all $pool	$pool_meta
+						} on error {errmsg options} {
+							log error "error calling check_cb:\n$::errorInfo"
 						}
-
-						dict set pool_meta_all $pool	$pool_meta
-					} on error {errmsg options} {
-						log error "error calling check_cb:\n$::errorInfo"
-					}
-				}
-
-				if {![info exists general_info_jmid]} {
-					set general_info_jmid	[$auth unique_id]
-					$auth chans register_chan $general_info_jmid \
-							[my code _general_info_chan_cb]
-				}
-				$auth pr_jm $general_info_jmid $seq [list general [list \
-						headers		$headers \
-						id_column	$id_column \
-				]]
-
-				foreach pool $userpools {
-					if {![dict exists $pool_jmids $pool]} {
-						dict set pool_jmids $pool	[$auth unique_id]
-						$auth chans register_chan \
-								[dict get $pool_jmids $pool] \
-								[my code _pool_chan_cb $pool]
 					}
 
-					set all_items	[$db eval {
-						select
-							data
-						from
-							pool_data
-						where
-							pool = $pool
-					}]
-					$auth pr_jm [dict get $pool_jmids $pool] $seq \
-							[list datachan $pool $all_items [dict get $pool_meta_all $pool]]
-				}
+					if {![info exists general_info_jmid]} {
+						set general_info_jmid	[$auth unique_id]
+						$auth chans register_chan $general_info_jmid \
+								[my code _general_info_chan_cb]
+					}
+					$auth pr_jm $general_info_jmid $seq [list general [list \
+							headers			$headers \
+							capabilities	$capabilities \
+							id_column		$id_column \
+					]]
 
-				$auth ack $seq ""
-				#>>>
-			}
-			"setup_new_pool" { #<<<
-				lassign $rest - new_pool extra
-
-				if {![dict exists $pools $new_pool]} {
-					$auth nack $seq "No such pool: ($new_pool)"
-					return
-				}
-				set check_cb	[dict get $pools $new_pool]
-				try {
-					# Provide a place for the check_cb callback to scribble into
-					# via an upvar command.  We send the contents to the client
-					set pool_meta	[dict create]
-
-					if {
-						$check_cb eq {}
-						|| [{*}$check_cb $user $new_pool $extra]
-					} {
-						if {![dict exists $pool_jmids $new_pool]} {
-							dict set pool_jmids $new_pool	[$auth unique_id]
+					foreach pool $userpools {
+						if {![dict exists $pool_jmids $pool]} {
+							dict set pool_jmids $pool	[$auth unique_id]
 							$auth chans register_chan \
-									[dict get $pool_jmids $new_pool] \
-									[my code _pool_chan_cb $new_pool]
+									[dict get $pool_jmids $pool] \
+									[my code _pool_chan_cb $pool]
 						}
 
 						set all_items	[$db eval {
@@ -473,27 +455,94 @@ cflib::pclass create ds::dschan_backend {
 							from
 								pool_data
 							where
-								pool = $new_pool
+								pool = $pool
 						}]
-						$auth pr_jm [dict get $pool_jmids $new_pool] $seq \
-								[list datachan $new_pool $all_items $pool_meta]
-
-						$auth ack $seq ""
-					} else {
-						$auth ack $seq ""
+						$auth pr_jm [dict get $pool_jmids $pool] $seq \
+								[list datachan $pool $all_items [dict get $pool_meta_all $pool]]
 					}
-				} on error {errmsg options} {
-					log error "error calling check_cb:\n[dict get $options -errorinfo]"
-					$auth nack $seq "Internal error"
-					return
+
+					list
+					#>>>
 				}
-				#>>>
+				setup_new_pool { #<<<
+					lassign $rest - new_pool extra
+
+					if {![dict exists $pools $new_pool]} {
+						throw nack "No such pool: ($new_pool)"
+					}
+					set check_cb	[dict get $pools $new_pool]
+					try {
+						# Provide a place for the check_cb callback to scribble
+						# into via an upvar command.  We send the contents to
+						# the client
+						set pool_meta	[dict create]
+
+						if {
+							$check_cb eq {} ||
+							[{*}$check_cb $user $new_pool $extra]
+						} {
+							if {![dict exists $pool_jmids $new_pool]} {
+								dict set pool_jmids $new_pool	[$auth unique_id]
+								$auth chans register_chan \
+										[dict get $pool_jmids $new_pool] \
+										[my code _pool_chan_cb $new_pool]
+							}
+
+							set all_items	[$db eval {
+								select
+									data
+								from
+									pool_data
+								where
+									pool = $new_pool
+							}]
+							$auth pr_jm [dict get $pool_jmids $new_pool] $seq \
+									[list datachan $new_pool $all_items $pool_meta]
+
+						}
+						list
+					} on error {errmsg options} {
+						error "error calling check_cb:\n[dict get $options -errorinfo]"
+					}
+					#>>>
+				}
+				add { #<<<
+					if {"insert" ni $capabilities} {
+						throw nack "insert not supported"
+					}
+					lassign $rest item
+					my req_add_item $user $item
+					#>>>
+				}
+				update { #<<<
+					if {"update" ni $capabilities} {
+						throw nack "update not supported"
+					}
+					lassign $rest olditem newitem
+					my req_update_item $user $olditem $newitem
+					#>>>
+				}
+				remove { #<<<
+					if {"delete" ni $capabilities} {
+						throw nack "delete not supported"
+					}
+					lassign $rest item
+					my req_delete_item $user $item
+					#>>>
+				}
+				default { #<<<
+					log error "invalid req type: [lindex $rest 0]"
+					throw nack "Invalid req type: ([lindex $rest 0])"
+					#>>>
+				}
 			}
-			default { #<<<
-				log error "invalid req type: [lindex $rest 0]"
-				$auth nack $seq "Invalid req type: ([lindex $rest 0])"
-				#>>>
-			}
+		} on ok {res} {
+			$auth ack $seq $res
+		} trap nack {errmsg} {
+			$auth nack $seq $errmsg
+		} on error {errmsg options} {
+			log error "Error handling request on general_info_chan: [dict get $options -errorinfo]"
+			$auth nack $seq "Internal error"
 		}
 	}
 
@@ -525,7 +574,7 @@ cflib::pclass create ds::dschan_backend {
 			}
 
 			req {
-				lassign $data seq prev_seq msg
+				lassign $data seq prev_seq rdata
 				$auth nack $seq "Requests not allowed on this channel"
 			}
 

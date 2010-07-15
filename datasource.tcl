@@ -139,15 +139,15 @@ cflib::pclass create ds::datasource {
 	}
 
 	#>>>
-	method add_item {row {col_list ""}} { #<<<
+	method add_item {item} { #<<<
 	}
 
 	#>>>
-	method update_item {oldrow newrow {old_col_list ""} {new_col_list ""}} { #<<<
+	method update_item {olditem newitem} { #<<<
 	}
 
 	#>>>
-	method remove_item {row {col_list ""}} { #<<<
+	method remove_item {item} { #<<<
 	}
 
 	#>>>

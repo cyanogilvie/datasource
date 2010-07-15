@@ -39,25 +39,22 @@ cflib::pclass create ds::dslist {
 	}
 
 	#>>>
-	method add_item {row {col_list ""}} { #<<<
-		array set dat	$row
-		#puts "dat:"
-		#parray dat
-
-		set item	{}
+	method add_item {item} { #<<<
+		set row		{}
 		set res		{}
 		foreach h $headers {
-			if {[info exists dat($h)]} {
-				lappend item $dat($h)
-				lappend res	$h $dat($h)
+			if {[dict exists $item $h]} {
+				set val	[dict get $item $h]
+				lappend row $val
+				lappend res	$h $val
 			} else {
-				lappend item ""
+				lappend row ""
 				lappend res $h ""
 			}
 		}
 
-		#puts "Adding item: ($item)"
-		lappend list $item
+		#puts "Adding item: ($row)"
+		lappend list $row
 		my invoke_handlers onchange
 
 		return $res
@@ -70,16 +67,16 @@ cflib::pclass create ds::dslist {
 	}
 
 	#>>>
-	method update_item {oldrow newrow {old_col_list ""} {new_col_list ""}} { #<<<
+	method update_item {olditem newitem} { #<<<
 	}
 
 	#>>>
-	method remove_item {row {col_list ""}} { #<<<
+	method remove_item {item} { #<<<
 	}
 
 	#>>>
 	method get_headers {} { #<<<
-		return $headers
+		set headers
 	}
 
 	#>>>

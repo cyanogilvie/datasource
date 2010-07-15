@@ -145,6 +145,30 @@ cflib::pclass create ds::dschan {
 	}
 
 	#>>>
+	method add_item {item} { #<<<
+		if {![my can_do insert]} {
+			error "insert not supported"
+		}
+		$connector req $tag [list add $item]
+	}
+
+	#>>>
+	method update_item {olditem newitem} { #<<<
+		if {![my can_do update]} {
+			error "update not supported"
+		}
+		$connector req $tag [list update $olditem $newitem]
+	}
+
+	#>>>
+	method remove_item {item} { #<<<
+		if {![my can_do delete]} {
+			error "delete not supported"
+		}
+		$connector req $tag [list remove $item]
+	}
+
+	#>>>
 
 	method _authenticated_changed {newstate} { #<<<
 		if {$newstate} {
@@ -203,9 +227,20 @@ cflib::pclass create ds::dschan {
 			pr_jm { #<<<
 				switch -- [lindex [dict get $msg data] 0] {
 					"general" {
+						my variable can_do
 						set general_jmid	[dict get $msg seq]
-						set general			[lindex [dict get $msg data] 1]
+						set general			[dict merge {
+							capabilities	{lookup}
+						} [lindex [dict get $msg data] 1]]
 						set id_column		[dict get $general id_column]
+						foreach cap [dict keys $can_do] {
+							if {$cap ni [dict get $general capabilities]} {
+								my can_do $cap no
+							}
+						}
+						foreach cap [dict get $general capabilities] {
+							my can_do $cap yes
+						}
 						$dominos(need_refresh) tip
 					}
 
@@ -314,6 +349,12 @@ cflib::pclass create ds::dschan {
 			jm_can { #<<<
 				if {![dict exists $jmid2pool [dict get $msg seq]]} {
 					if {[info exists general_jmid] && [dict get $msg seq] eq $general_jmid} {
+						my variable can_do
+						foreach cap [dict keys $can_do] {
+							if {$cap ni {lookup}} {
+								my can_do $cap no
+							}
+						}
 						unset general_jmid
 						$signals(connected) set_state 0
 					} else {
