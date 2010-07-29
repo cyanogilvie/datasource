@@ -404,9 +404,10 @@ cflib::pclass create ds::dschan_backend {
 	}
 
 	#>>>
-	method _req_handler {auth user seq rest} { #<<<
+	method _req_handler {auth user seq data} { #<<<
 		try {
-			switch -- [lindex $rest 0] {
+			set rest	[lassign $data op]
+			switch -- $op {
 				setup_chans { #<<<
 					set extra	[lindex $rest 1]
 
@@ -465,7 +466,7 @@ cflib::pclass create ds::dschan_backend {
 					#>>>
 				}
 				setup_new_pool { #<<<
-					lassign $rest - new_pool extra
+					lassign $rest new_pool extra
 
 					if {![dict exists $pools $new_pool]} {
 						throw nack "No such pool: ($new_pool)"
@@ -531,8 +532,8 @@ cflib::pclass create ds::dschan_backend {
 					#>>>
 				}
 				default { #<<<
-					log error "invalid req type: [lindex $rest 0]"
-					throw nack "Invalid req type: ([lindex $rest 0])"
+					log error "invalid req type: $op"
+					throw nack "Invalid req type: ($op)"
 					#>>>
 				}
 			}
