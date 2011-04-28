@@ -156,32 +156,30 @@ cflib::pclass create ds::datasource_filter {
 
 	#>>>
 
-	method get_list {criteria {headersvar {}}} { #<<<
+	method get_list {a_criteria {headersvar {}}} { #<<<
 		if {$headersvar ne {}} {
 			upvar $headersvar hdrs
 		} else {
 			set hdrs	{}
 		}
 
-		set list	[dict values [lindex [my get_list_extended $criteria hdrs] 1]]
+		set list	[dict values [lindex [my get_list_extended $a_criteria hdrs] 1]]
 
 		lsort -unique -index $id_column [concat {*}$list]
 	}
 
 	#>>>
-	method get_list_extended {criteria {headersvar {}}} { #<<<
+	method get_list_extended {a_criteria {headersvar {}}} { #<<<
 		if {$headersvar ne {}} {
 			upvar $headersvar hdrs
 		}
-
-		lassign [my _get_compose_info $criteria] \
+		lassign [my _get_compose_info $a_criteria] \
 				base_data \
 				filters \
 				translators \
 				hdrs \
 				custom_keys \
 				override_headers_list
-
 		lassign $base_data pool_meta pool_data
 
 		if {$override_headers ne {}} {
@@ -215,7 +213,6 @@ cflib::pclass create ds::datasource_filter {
 		if {$have_ftu} { #<<<
 			dict for {pool data} $pool_data {
 				set meta	[dict get $pool_meta $pool]
-
 				set new_pool_data	{}
 				foreach r $data {
 					set row	[ftu::hv2dict $hdrs $r]
@@ -519,14 +516,13 @@ cflib::pclass create ds::datasource_filter {
 	}
 
 	#>>>
-	method _get_compose_info {{criteria {}}} { #<<<
+	method _get_compose_info {{a_criteria {}}} { #<<<
 		# returns { base_data composite_filters composite_translators headers custom_keys}
-
 		set filters		{}
 		set translators	{}
 		set custom_key_dicts	{}
 		set override_headers_list	{}
-		set ds_now		$this
+		set ds_now		[self]; #$this
 		while {$ds_now ne {}} {
 			lappend ds_stack	$ds_now
 			if {![info object isa object $ds_now]} {
@@ -546,12 +542,12 @@ cflib::pclass create ds::datasource_filter {
 				}
 
 				"::ds::dschan" {
-					set base_data	[$ds_now get_list_extended $criteria headers]
+					set base_data	[$ds_now get_list_extended $a_criteria headers]
 					set ds_now		{}
 				}
 
 				"::ds::dslist" {
-					set base_data	[list {} [list {} [$ds_now get_list $criteria headers]]]
+					set base_data	[list {} [list {} [$ds_now get_list $a_criteria headers]]]
 					set ds_now		{}
 				}
 
