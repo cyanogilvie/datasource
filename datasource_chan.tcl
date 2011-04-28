@@ -104,7 +104,7 @@ cflib::pclass create ds::dschan {
 
 	#>>>
 
-	method get_list {criteria {headersvar {}}} { #<<<
+	method get_list {a_criteria {headersvar {}}} { #<<<
 		if {$headersvar ne {}} {
 			upvar $headersvar h
 			set h	[dict get $general headers]
@@ -119,7 +119,7 @@ cflib::pclass create ds::dschan {
 	}
 
 	#>>>
-	method get_list_extended {criteria {headersvar {}}} { #<<<
+	method get_list_extended {a_criteria {headersvar {}}} { #<<<
 		if {$headersvar ne {}} {
 			upvar $headersvar h
 			set h	[dict get $general headers]
