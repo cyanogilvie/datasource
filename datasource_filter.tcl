@@ -191,7 +191,6 @@ cflib::pclass create ds::datasource_filter {
 				hdrs \
 				custom_keys \
 				override_headers_list
-
 		lassign $base_data pool_meta pool_data
 
 		if {$override_headers ne {}} {
@@ -225,7 +224,6 @@ cflib::pclass create ds::datasource_filter {
 		if {$have_ftu} { #<<<
 			dict for {pool data} $pool_data {
 				set meta	[dict get $pool_meta $pool]
-
 				set new_pool_data	{}
 				foreach r $data {
 					set row	[ftu::hv2dict $hdrs $r]
@@ -545,7 +543,6 @@ cflib::pclass create ds::datasource_filter {
 	#>>>
 	method _get_compose_info {{a_criteria {}}} { #<<<
 		# returns { base_data composite_filters composite_translators headers custom_keys}
-
 		set filters		{}
 		set translators	{}
 		set custom_key_dicts	{}
