@@ -22,7 +22,7 @@ package require cflib
 package require sop
 
 cflib::pclass create ds::datasource_filter {
-	superclass ds::datasource cflib::baselog
+	superclass ds::datasource
 
 	property ds					""		_ds_changed
 	property setup				{}		_need_refilter
@@ -41,19 +41,30 @@ cflib::pclass create ds::datasource_filter {
 	}
 
 	constructor {args} { #<<<
+		?? {log debug "Starting datasource_filter [self] constructor"}
 		set link_id_column		1
 		set damp_onchange		1
 		set have_ftu			0
 		set _custom_keys		[dict create]
 
-		my log debug [self]
-		set have_ftu	[expr {![catch {package require ftu}]}]
+		# It is amazingly slow to do this if ftu is not available - 160ms delay
+		# for each instance of this class constructed.  To use ftu, load it
+		# prior to creating instances
+		#set have_ftu	[expr {![catch {package require ftu}]}]
+		#set have_ftu	[expr {"ftu" in [package names]}]
 
 		array set dominos	{}
 
 		sop::domino new dominos(need_refilter) -name "[self] need_refilter"
 
 		my configure {*}$args
+
+		if {"::oo::Helpers::cflib" ni [namespace path]} {
+			namespace path [concat [namespace path] {
+				::tcl::mathop
+				::oo::Helpers::cflib
+			}]
+		}
 
 		foreach reqf {ds} {
 			if {![info exists $reqf]} {
@@ -64,37 +75,36 @@ cflib::pclass create ds::datasource_filter {
 		if {$ds eq ""} {
 			throw {missing_field ds} "Must set -ds"
 		}
-		my log debug "Filtering ds ($ds): ($filter), override_headers: ($override_headers)"
+		?? {log debug "Filtering ds ($ds): ($filter), override_headers: ($override_headers)"}
 
-		$dominos(need_refilter) attach_output [my code _refilter]
+		$dominos(need_refilter) attach_output [code _refilter]
 
-		$ds register_handler init				[my code _init]
-		$ds register_handler onchange			[my code _onchange]
-		$ds register_handler id_column_changed	[my code _id_column_changed]
-		$ds register_handler headers_changed	[my code _headers_changed]
-		$ds register_handler new_item			[my code _new_item]
-		$ds register_handler change_item		[my code _change_item]
-		$ds register_handler remove_item		[my code _remove_item]
-		$ds register_handler new_pool			[my code _new_pool]
-		$ds register_handler remove_pool		[my code _remove_pool]
+		$ds register_handler init				[code _init]
+		$ds register_handler onchange			[code _onchange]
+		$ds register_handler id_column_changed	[code _id_column_changed]
+		$ds register_handler headers_changed	[code _headers_changed]
+		$ds register_handler new_item			[code _new_item]
+		$ds register_handler change_item		[code _change_item]
+		$ds register_handler remove_item		[code _remove_item]
+		$ds register_handler new_pool			[code _new_pool]
+		$ds register_handler remove_pool		[code _remove_pool]
+		?? {log debug "Finished datasource_filter [self] constructor"}
 	}
 
 	#>>>
 	destructor { #<<<
-		my log debug $this
-
-		$dominos(need_refilter) detach_output [my code _refilter]
+		$dominos(need_refilter) detach_output [code _refilter]
 
 		if {[info exists ds] && [info object isa object $ds]} {
-			$ds deregister_handler init 			[my code _init]
-			$ds deregister_handler onchange			[my code _onchange]
-			$ds deregister_handler id_column_changed [my code _id_column_changed]
-			$ds deregister_handler headers_changed	[my code _headers_changed]
-			$ds deregister_handler new_item			[my code _new_item]
-			$ds deregister_handler change_item		[my code _change_item]
-			$ds deregister_handler remove_item		[my code _remove_item]
-			$ds deregister_handler new_pool			[my code _new_pool]
-			$ds deregister_handler remove_pool		[my code _remove_pool]
+			$ds deregister_handler init 			[code _init]
+			$ds deregister_handler onchange			[code _onchange]
+			$ds deregister_handler id_column_changed [code _id_column_changed]
+			$ds deregister_handler headers_changed	[code _headers_changed]
+			$ds deregister_handler new_item			[code _new_item]
+			$ds deregister_handler change_item		[code _change_item]
+			$ds deregister_handler remove_item		[code _remove_item]
+			$ds deregister_handler new_pool			[code _new_pool]
+			$ds deregister_handler remove_pool		[code _remove_pool]
 		}
 	}
 
@@ -125,16 +135,16 @@ cflib::pclass create ds::datasource_filter {
 			)
 		} {
 			if {![info object isa object $ds]} {
-				my log error "-ds ($ds) is not an object"
+				log error "-ds ($ds) is not an object"
 			} elseif {
 				!(
 					[info object isa typeof $ds ds::dschan] ||
 					[info object isa typeof $ds ds::datasource_filter]
 				)
 			} {
-				my log error "-ds ($ds) is not a ds::dschan or ds::datasource_filter"
+				log error "-ds ($ds) is not a ds::dschan or ds::datasource_filter"
 			} else {
-				my log error "non-specific -ds ($ds) problem"
+				log error "non-specific -ds ($ds) problem"
 			}
 			throw {invalid_ds} \
 					"Only ds::dschan, ds::datasource_filter and their subclasses are allowed for -ds"
@@ -156,25 +166,25 @@ cflib::pclass create ds::datasource_filter {
 
 	#>>>
 
-	method get_list {criteria {headersvar {}}} { #<<<
+	method get_list {a_criteria {headersvar {}}} { #<<<
 		if {$headersvar ne {}} {
 			upvar $headersvar hdrs
 		} else {
 			set hdrs	{}
 		}
 
-		set list	[dict values [lindex [my get_list_extended $criteria hdrs] 1]]
+		set list	[dict values [lindex [my get_list_extended $a_criteria hdrs] 1]]
 
 		lsort -unique -index $id_column [concat {*}$list]
 	}
 
 	#>>>
-	method get_list_extended {criteria {headersvar {}}} { #<<<
+	method get_list_extended {a_criteria {headersvar {}}} { #<<<
 		if {$headersvar ne {}} {
 			upvar $headersvar hdrs
 		}
 
-		lassign [my _get_compose_info $criteria] \
+		lassign [my _get_compose_info $a_criteria] \
 				base_data \
 				filters \
 				translators \
@@ -252,8 +262,9 @@ cflib::pclass create ds::datasource_filter {
 
 				set new_pool_data	{}
 				foreach r $data {
+					?? {log notice "processing row ($r)"}
 					set row	[dict create]
-					foreach h $hdrs v $vals {
+					foreach h $hdrs v $r {
 						dict set row $h $v
 					}
 
@@ -266,23 +277,29 @@ cflib::pclass create ds::datasource_filter {
 							set passes	0
 							break
 						} on ok {res} {
+							?? {log debug "Passes filter ($filter)? $res"}
 							set passes	$res
 							if {!($passes)} break
 						}
 
+						?? {log debug "use translator? $use_trans"}
 						if {$use_trans} $translator
 					}
 
 					if {$passes} {
 						if {$use_trans} {
+							?? {log debug "translating $row"}
 							set outrow	{}
-							foreach h $outhdrs {
+							#foreach h $outhdrs 
+							foreach h [my get_headers] {
+								?? {log debug "Picking out field $h: [dict get $row $h]"}
 								lappend outrow	[dict get $row $h]
 							}
 							lappend new_pool_data	$outrow
 						} else {
 							lappend new_pool_data	$r
 						}
+						?? {log debug "Appending new output row: $r"}
 					}
 				}
 				lappend build	$pool $new_pool_data
@@ -303,12 +320,19 @@ cflib::pclass create ds::datasource_filter {
 
 	#>>>
 	method get_headers {} { #<<<
-		if {$override_headers ne {}} {
-			set outhdrs		$override_headers
+		if {[info exists last_headers]} {
+			?? {log debug "datasource_filter [self] get_headers, last_headers are set, using them: ($last_headers)"}
+			set last_headers
 		} else {
-			set outhdrs		[$ds get_headers]
+			if {$override_headers ne {}} {
+				?? {log debug "datasource_filter [self] get_headers, override_headers are set, using them: ($override_headers)"}
+				set override_headers
+			} else {
+				set last_headers	[$ds get_headers]
+				?? {log debug "datasource_filter [self] get_headers, asking base ds for them: ($last_headers)"}
+				set last_headers
+			}
 		}
-		return $outhdrs
 	}
 
 	#>>>
@@ -380,23 +404,23 @@ cflib::pclass create ds::datasource_filter {
 			lappend row $h $v
 		}
 
-		#my log debug "testing against filter: ($filter)"
+		#log debug "testing against filter: ($filter)"
 		try {
 			if {![expr $filter]} return
 		} on error {errmsg options} {
 			throw [list filter_error $errmsg] "Error applying filter ($filter): $errmsg"
 		}
-		#my log debug "survives filter"
+		#log debug "survives filter"
 
 		set use_trans	[expr {$translator ne {}}]
 
 		if {$use_trans} $translator
-		#my log debug "after translator:"
+		#log debug "after translator:"
 		#parray row
 
 		if {$use_trans} {
 			set outrow	{}
-			foreach h $last_headers {
+			foreach h [my get_headers] {
 				lappend outrow	[dict get $row $h]
 			}
 			set id		[lindex $outrow $id_column]
@@ -429,7 +453,7 @@ cflib::pclass create ds::datasource_filter {
 
 			if {$use_trans} {
 				set old_outrow	{}
-				foreach h $last_headers {
+				foreach h [my get_headers] {
 					lappend old_outrow	[dict get $row $h]
 				}
 			} else {
@@ -451,7 +475,7 @@ cflib::pclass create ds::datasource_filter {
 
 			if {$use_trans} {
 				set new_outrow	{}
-				foreach h $last_headers {
+				foreach h [my get_headers] {
 					lappend new_outrow	[dict get $row $h]
 				}
 			} else {
@@ -492,7 +516,7 @@ cflib::pclass create ds::datasource_filter {
 
 		if {$use_trans} {
 			set old_outrow	{}
-			foreach h $last_headers {
+			foreach h [my get_headers] {
 				lappend old_outrow	[dict get $row $h]
 			}
 		} else {
@@ -519,14 +543,14 @@ cflib::pclass create ds::datasource_filter {
 	}
 
 	#>>>
-	method _get_compose_info {{criteria {}}} { #<<<
+	method _get_compose_info {{a_criteria {}}} { #<<<
 		# returns { base_data composite_filters composite_translators headers custom_keys}
 
 		set filters		{}
 		set translators	{}
 		set custom_key_dicts	{}
 		set override_headers_list	{}
-		set ds_now		$this
+		set ds_now		[self]
 		while {$ds_now ne {}} {
 			lappend ds_stack	$ds_now
 			if {![info object isa object $ds_now]} {
@@ -546,12 +570,12 @@ cflib::pclass create ds::datasource_filter {
 				}
 
 				"::ds::dschan" {
-					set base_data	[$ds_now get_list_extended $criteria headers]
+					set base_data	[$ds_now get_list_extended $a_criteria headers]
 					set ds_now		{}
 				}
 
 				"::ds::dslist" {
-					set base_data	[list {} [list {} [$ds_now get_list $criteria headers]]]
+					set base_data	[list {} [list {} [$ds_now get_list $a_criteria headers]]]
 					set ds_now		{}
 				}
 

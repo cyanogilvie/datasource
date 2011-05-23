@@ -38,8 +38,17 @@
 # );
 #
 
+#oo::class create ds::tclass {
+#	superclass cflib::pclass
+#
+#	method new args {
+#		tailcall my create ::ds::inst_dschan_[incr ::ds::instseq] {*}$args
+#	}
+#}
+#ds::tclass create ds::dschan
+
 cflib::pclass create ds::dschan {
-	superclass cflib::baselog sop::signalsource ds::datasource
+	superclass sop::signalsource ds::datasource
 
 	property connector
 	property tag		""			_tag_changed
@@ -58,6 +67,7 @@ cflib::pclass create ds::dschan {
 	}
 
 	constructor {args} { #<<<
+		?? {log debug "Constructing dschan [self]"}
 		package require m2
 
 		set general		[dict create]
@@ -73,6 +83,12 @@ cflib::pclass create ds::dschan {
 		$dominos(need_refresh) attach_output [my code _signal_refresh]
 		sop::signal new signals(connected) -name "[self] connected"
 
+		?? {
+			$signals(connected) attach_output [list apply {
+				{obj newstate} {log debug "dschan $obj connected: $newstate"}
+			} [self]]
+		}
+
 		my configure {*}$args
 
 		foreach reqf {connector tag} {
@@ -83,6 +99,7 @@ cflib::pclass create ds::dschan {
 
 		[$connector signal_ref authenticated] attach_output \
 				[my code _authenticated_changed]
+		?? {log debug "Finished constructing dschan [self]"}
 	}
 
 	#>>>
@@ -91,6 +108,14 @@ cflib::pclass create ds::dschan {
 			[info exists connector] &&
 			[info object isa object $connector]
 		} {
+			if {[info exists general_jmid]} {
+				[$connector auth] jm_disconnect {*}$general_jmid
+				unset general_jmid
+			}
+			dict for {pool jm} $pool_jmids {
+				[$connector auth] jm_disconnect {*}$jm
+			}
+			set pool_jmids	{}
 			[$connector signal_ref authenticated] detach_output \
 					[my code _authenticated_changed]
 		}
@@ -104,7 +129,7 @@ cflib::pclass create ds::dschan {
 
 	#>>>
 
-	method get_list {criteria {headersvar {}}} { #<<<
+	method get_list {a_criteria {headersvar {}}} { #<<<
 		if {$headersvar ne {}} {
 			upvar $headersvar h
 			set h	[dict get $general headers]
@@ -114,12 +139,13 @@ cflib::pclass create ds::dschan {
 
 		set list	[dict values $pool_data]
 
+		?? {log debug "dschan [self] get_list headers: ($last_headers)"}
 		set flatlist	[concat {*}$list]
 		lsort -unique -index $id_column $flatlist
 	}
 
 	#>>>
-	method get_list_extended {criteria {headersvar {}}} { #<<<
+	method get_list_extended {a_criteria {headersvar {}}} { #<<<
 		if {$headersvar ne {}} {
 			upvar $headersvar h
 			set h	[dict get $general headers]
@@ -171,12 +197,14 @@ cflib::pclass create ds::dschan {
 	#>>>
 
 	method _authenticated_changed {newstate} { #<<<
+		?? {log debug "dschan [self] authenticated_changed: $newstate"}
 		if {$newstate} {
-			#my log debug "Attempting to setup chans extra: ($extra)"
+			#log debug "Attempting to setup chans extra: ($extra)"
+			?? {log debug "Datasource_chan [self] requesting setup_chans"}
 			$connector req_async $tag [list "setup_chans" $extra] \
 					[my code _jm_handler [list initial]]
 		} else {
-			#my log error "not connected to backend"
+			#log error "not connected to backend"
 			$signals(connected) set_state 0
 		}
 	}
@@ -189,19 +217,21 @@ cflib::pclass create ds::dschan {
 				switch -- $type {
 					"new_pool" {
 						lassign $cdata new_pool
-						#my log debug "joined new pool ($new_pool), invoking new_pool handlers"
+						#log debug "joined new pool ($new_pool), invoking new_pool handlers"
+						?? {log debug "Datasource_chan [self] setup new pool returned ($new_pool)"}
 						my invoke_handlers new_pool $new_pool
 					}
 
 					"initial" {
 						lassign $cdata extra
-						#my log debug "Setup chans returned.  extra: ($extra)"
+						#log debug "Setup chans returned.  extra: ($extra)"
+						?? {log debug "Datasource_chan [self] setup_chans ack, extra: ($extra)"}
 						$signals(connected) set_state 1
 						my invoke_handlers init
 					}
 
 					default {
-						my log error "Ack for unexpected context: ($type)"
+						log error "Ack for unexpected context: ($type)"
 					}
 				}
 				#>>>
@@ -211,15 +241,15 @@ cflib::pclass create ds::dschan {
 				switch -- $type {
 					"new_pool" {
 						lassign $cdata new_pool
-						my log error "error calling setup_new_pool ($new_pool): [dict get $msg data]"
+						log error "error calling setup_new_pool ($new_pool): [dict get $msg data]"
 					}
 
 					"initial" {
-						my log error "error calling setup_chans: ([dict get $msg data])"
+						log error "error calling setup_chans: ([dict get $msg data])"
 					}
 
 					default {
-						my log error "Nack for unexpected context: ([dict get $msg type])"
+						log error "Nack for unexpected context: ([dict get $msg type])"
 					}
 				}
 				#>>>
@@ -228,7 +258,7 @@ cflib::pclass create ds::dschan {
 				switch -- [lindex [dict get $msg data] 0] {
 					"general" {
 						my variable can_do
-						set general_jmid	[dict get $msg seq]
+						set general_jmid	[list [dict get $msg seq] [dict get $msg prev_seq]]
 						set general			[dict merge {
 							capabilities	{lookup}
 						} [lindex [dict get $msg data] 1]]
@@ -248,13 +278,13 @@ cflib::pclass create ds::dschan {
 						lassign [dict get $msg data] - pool data meta
 						dict set pool_data $pool	$data
 						dict set pool_meta $pool	$meta
-						dict set pool_jmids $pool	[dict get $msg seq]
+						dict set pool_jmids $pool	[list [dict get $msg seq] [dict get $msg prev_seq]]
 						dict set jmid2pool [dict get $msg seq]	$pool
 						$dominos(need_refresh) tip
 					}
 
 					default {
-						my log error "unrecognized pr_jm type: ([lindex [dict get $msg data] 0])"
+						log error "unrecognized pr_jm type: ([lindex [dict get $msg data] 0])"
 					}
 				}
 				#>>>
@@ -263,9 +293,9 @@ cflib::pclass create ds::dschan {
 				if {![dict exists $jmid2pool [dict get $msg seq]]} {
 					if {
 						[info exists general_jmid] &&
-						[dict get $msg seq] eq $general_jmid
+						[dict get $msg seq] eq [lindex $general_jmid 0]
 					} {
-						#my log debug "general info update"
+						#log debug "general info update"
 						switch -- [lindex [dict get $msg data] 0] {
 							"headers_changed" { #<<<
 								dict set general headers	[lindex [dict get $msg data] 1]
@@ -282,19 +312,20 @@ cflib::pclass create ds::dschan {
 							}
 							"new_pool" { #<<<
 								set new_pool			[lindex [dict get $msg data] 1]
-								#my log debug "received notice of new pool: ($new_pool), requesting to join (extra: $extra)"
+								#log debug "received notice of new pool: ($new_pool), requesting to join (extra: $extra)"
+								?? {log debug "Datasource_chan [self] received notice of new pool: ($new_pool), requesting to join (extra: $extra)"}
 								$connector req_async $tag \
 										[list "setup_new_pool" $new_pool $extra] \
 										[my code _jm_handler [list new_pool [list $new_pool]]]
 								#>>>
 							}
 							default { #<<<
-								my log error "unknown general info update type: ([lindex [dict get $msg data] 0])"
+								log error "unknown general info update type: ([lindex [dict get $msg data] 0])"
 								#>>>
 							}
 						}
 					} else {
-						my log error "unrecognized channel: ([dict get $msg seq])"
+						log error "unrecognized channel: ([dict get $msg seq])"
 					}
 				} else {
 					set pool	[dict get $jmid2pool [dict get $msg seq]]
@@ -307,9 +338,9 @@ cflib::pclass create ds::dschan {
 							try {
 								my invoke_handlers new_item $pool $id $item
 							} on error {errmsg options} {
-								my log error "handlers for new_item threw error: $errmsg\n[dict get $options -errorinfo]"
+								log error "handlers for new_item threw error: $errmsg\n[dict get $options -errorinfo]"
 							} on ok {} {
-								?? {my log debug "All handlers for new_item completed ok"}
+								?? {log debug "All handlers for new_item completed ok"}
 							}
 							$dominos(need_refresh) tip
 							#>>>
@@ -318,7 +349,7 @@ cflib::pclass create ds::dschan {
 							lassign [dict get $msg data] - id olditem newitem
 							set idx		[my _scan_for_id $pool $id]
 							if {$idx == -1} {
-								my log error "changed: couldn't find id ($id)"
+								log error "changed: couldn't find id ($id)"
 							} else {
 								dict set pool_data $pool	[lreplace [dict get $pool_data $pool] $idx $idx $newitem]
 								my invoke_handlers change_item $pool $id $olditem $newitem
@@ -330,7 +361,7 @@ cflib::pclass create ds::dschan {
 							lassign [dict get $msg data] - id olditem
 							set idx		[my _scan_for_id $pool $id]
 							if {$idx == -1} {
-								my log error "removed: couldn't find id ($id)"
+								log error "removed: couldn't find id ($id)"
 							} else {
 								dict set pool_data $pool	[lreplace [dict get $pool_data $pool] $idx $idx]
 								my invoke_handlers remove_item $pool $id $olditem
@@ -348,7 +379,10 @@ cflib::pclass create ds::dschan {
 			}
 			jm_can { #<<<
 				if {![dict exists $jmid2pool [dict get $msg seq]]} {
-					if {[info exists general_jmid] && [dict get $msg seq] eq $general_jmid} {
+					if {
+						[info exists general_jmid] &&
+						[dict get $msg seq] eq [lindex $general_jmid 0]
+					} {
 						my variable can_do
 						foreach cap [dict keys $can_do] {
 							if {$cap ni {lookup}} {
@@ -358,7 +392,7 @@ cflib::pclass create ds::dschan {
 						unset general_jmid
 						$signals(connected) set_state 0
 					} else {
-						my log error "unrecognized channel cancelled: ([dict get $msg seq])"
+						log error "unrecognized channel cancelled: ([dict get $msg seq])"
 					}
 				} else {
 					set pool	[dict get $jmid2pool [dict get $msg seq]]
@@ -373,7 +407,7 @@ cflib::pclass create ds::dschan {
 				#>>>
 			}
 			default { #<<<
-				my log error "unexpected type: ([dict get $msg type])"
+				log error "unexpected type: ([dict get $msg type])"
 				#>>>
 			}
 		}
