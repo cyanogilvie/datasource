@@ -157,7 +157,7 @@ cflib::pclass create ds::datasource {
 
 	#>>>
 	method get_full_row {id} { #<<<
-		# purpose: to return all fields defined in the filed definitions for
+		# purpose: to return all fields defined in the field definitions for
 		# the id specified -- to be used by a client who will be doing an
 		# update later returns: array-style list of {col} {val} {col} {val} ...
 		# this is to be implemented by the client

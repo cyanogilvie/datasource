@@ -41,6 +41,7 @@ cflib::pclass create ds::datasource_filter {
 	}
 
 	constructor {args} { #<<<
+		if {[llength [info commands log]] == 0} {proc log {lvl msg} {puts stderr $msg}}
 		?? {log debug "Starting datasource_filter [self] constructor"}
 		set link_id_column		1
 		set damp_onchange		1
@@ -131,7 +132,9 @@ cflib::pclass create ds::datasource_filter {
 			![info object isa object $ds] ||
 			!(
 				[info object isa typeof $ds ds::dschan] ||
-				[info object isa typeof $ds ds::datasource_filter]
+				[info object isa typeof $ds ds::datasource_filter] ||
+				[info object isa typeof $ds ds::dslist] ||
+				[info object isa typeof $ds ds::dsnotchan]
 			)
 		} {
 			if {![info object isa object $ds]} {
@@ -139,15 +142,17 @@ cflib::pclass create ds::datasource_filter {
 			} elseif {
 				!(
 					[info object isa typeof $ds ds::dschan] ||
-					[info object isa typeof $ds ds::datasource_filter]
+					[info object isa typeof $ds ds::datasource_filter] ||
+					[info object isa typeof $ds ds::dslist] ||
+					[info object isa typeof $ds ds::dsnotchan]
 				)
 			} {
-				log error "-ds ($ds) is not a ds::dschan or ds::datasource_filter"
+				log error "-ds ($ds) is not a ds::dschan, ds::dslist or ds::datasource_filter"
 			} else {
 				log error "non-specific -ds ($ds) problem"
 			}
 			throw {invalid_ds} \
-					"Only ds::dschan, ds::datasource_filter and their subclasses are allowed for -ds"
+					"Only ds::dschan, ds::dslist, ds::datasource_filter and their subclasses are allowed for -ds"
 		}
 
 		if {$link_id_column} {
@@ -572,6 +577,11 @@ cflib::pclass create ds::datasource_filter {
 				}
 
 				"::ds::dslist" {
+					set base_data	[list {{} {}} [list {} [$ds_now get_list $a_criteria headers]]]
+					set ds_now		{}
+				}
+
+				"::ds::dsnotchan" {
 					set base_data	[list {} [list {} [$ds_now get_list $a_criteria headers]]]
 					set ds_now		{}
 				}

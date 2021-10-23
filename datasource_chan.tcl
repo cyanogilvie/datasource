@@ -211,6 +211,7 @@ cflib::pclass create ds::dschan {
 
 	#>>>
 	method _jm_handler {context msg} { #<<<
+		?? {log debug "dschan::_jm_handler context: ($context), msg: [dict get $msg type]"}
 		switch -- [dict get $msg type] {
 			ack { #<<<
 				set cdata	[lassign $context type]
@@ -255,6 +256,7 @@ cflib::pclass create ds::dschan {
 				#>>>
 			}
 			pr_jm { #<<<
+				?? {log debug "dschan _jm_handler/pr_jm([dict get $msg seq]): type [lindex [dict get $msg data] 0]"}
 				switch -- [lindex [dict get $msg data] 0] {
 					"general" {
 						my variable can_do
@@ -276,6 +278,7 @@ cflib::pclass create ds::dschan {
 
 					"datachan" {
 						lassign [dict get $msg data] - pool data meta
+						?? {log debug "dschan _jm_handler/pr_jm([dict get $msg seq]) got datachan setup for pool: \"$pool\""}
 						dict set pool_data $pool	$data
 						dict set pool_meta $pool	$meta
 						dict set pool_jmids $pool	[list [dict get $msg seq] [dict get $msg prev_seq]]
@@ -325,7 +328,13 @@ cflib::pclass create ds::dschan {
 							}
 						}
 					} else {
-						log error "unrecognized channel: ([dict get $msg seq])"
+						log error "dschan::_jm_handler/jm: unrecognized channel: ([dict get $msg seq])"
+						?? {
+							log error "general chan: [lindex $general_jmid 0]"
+							dict for {jmid pool} $jmid2pool {
+								log error "pooljmid $jmid -> \"$pool\""
+							}
+						}
 					}
 				} else {
 					set pool	[dict get $jmid2pool [dict get $msg seq]]
