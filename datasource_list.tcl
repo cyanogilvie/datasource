@@ -75,7 +75,16 @@ cflib::pclass create ds::dslist {
 	}
 
 	#>>>
-	method _item2row item { #<<<
+	method item2row item { #<<<
+		set row	{}
+		foreach h $headers v $item {
+			lappend row $h $v
+		}
+		set row
+	}
+
+	#>>>
+	method _row2item item { #<<<
 		lmap h $headers {
 			if {[dict exists $item $h]} {
 				dict get $item $h
@@ -126,8 +135,8 @@ cflib::pclass create ds::dslist {
 	#>>>
 	}
 	method update_item {olditem newitem} { #<<<
-		set oldrow	[my _item2row $olditem]
-		set newrow	[my _item2row $newitem]
+		set oldrow	[my _row2item $olditem]
+		set newrow	[my _row2item $newitem]
 		set oldid	[lindex $oldrow $id_column]
 		set newid	[lindex $newrow $id_column]
 		set found	0
@@ -151,7 +160,7 @@ cflib::pclass create ds::dslist {
 
 	#>>>
 	method remove_item item { #<<<
-		set oldrow	[my _item2row $item]
+		set oldrow	[my _row2item $item]
 		set oldid	[lindex $oldrow $id_column]
 		if {![dict exists $id_index $oldid]} return
 		set i		[dict get $id_index $oldid]
@@ -178,11 +187,6 @@ cflib::pclass create ds::dslist {
 		}
 		#log debug "dslist::get ($id), index i: ($i), row: ([lindex $list $i]), item: ($item)"
 		set item
-	}
-
-	#>>>
-	method get_full_row id { #<<<
-		my get $id
 	}
 
 	#>>>

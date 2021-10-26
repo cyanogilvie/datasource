@@ -354,6 +354,15 @@ cflib::pclass create ds::datasource_filter {
 	}
 
 	#>>>
+	method item2row item { #<<<
+		set row	{}
+		foreach h [my get_headers] v $item {
+			lappend row $h $v
+		}
+		set row
+	}
+
+	#>>>
 
 	method _need_refilter {} { #<<<
 		$dominos(need_refilter) tip

@@ -156,7 +156,7 @@ cflib::pclass create ds::datasource {
 	}
 
 	#>>>
-	method get_full_row {id} { #<<<
+	method get {id} { #<<<
 		# purpose: to return all fields defined in the field definitions for
 		# the id specified -- to be used by a client who will be doing an
 		# update later returns: array-style list of {col} {val} {col} {val} ...
@@ -164,6 +164,7 @@ cflib::pclass create ds::datasource {
 	}
 
 	#>>>
+	method get_full_row id { tailcall my get $id }
 	method can_do {action args} { #<<<
 		if {[llength $args] == 0} {
 			expr {[dict exists $can_do $action] && [dict get $can_do $action]}
